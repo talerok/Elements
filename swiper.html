@@ -1,0 +1,227 @@
+<style>
+    .swiper{
+        white-space: nowrap;
+        font-size: 0;
+    }
+
+    .swiper:not(.touch){
+        transition-property: margin;
+        transition: 1s;
+    }
+
+    .swiper-element{
+        display: inline-block;
+        font-size: 14px;
+        padding: 5px;
+    }
+
+    .swiper-button{
+        cursor: pointer;
+        display: inline-block;
+        
+    }
+
+    .container{
+        display: inline-block;
+        overflow: hidden;
+        width: 50%;
+        border-style: solid;
+    }
+
+</style>
+
+<div class="swiper-button">Влево</div>
+<div class="container">
+    <div class="swiper">
+        <div class="swiper-element" style="background-color:blue; color: white;">
+            blabla
+        </div>
+        <div class="swiper-element" style="background-color:blueviolet; color: white;">
+            blablab
+        </div>
+        <div class="swiper-element" style="background-color:brown; color: white;">
+            blablablabla
+        </div>
+        <div class="swiper-element" style="background-color:burlywood; color: white;">
+            blablablablbabababa
+        </div>
+        <div class="swiper-element" style="background-color:cadetblue; color: white;">
+            blablablabla
+        </div>
+        <div class="swiper-element" style="background-color:chartreuse; color: white;">
+            blablablablablabla
+        </div>
+        <div class="swiper-element" style="background-color:chocolate; color: white;">
+            blablablablablablablabla
+        </div>
+    </div>
+</div>
+<div class="swiper-button">Вправо</div>
+<div style="margin-top: 30px;">
+    <input type="checkbox" id="touchEnabler"><label for="touchEnabler">включить скрол пальцем (только моб. устройства или режим эмуляции в chrome)</label>
+</div>
+
+<div id="console">
+</div>
+
+<script>
+    var swiper = function(swiper, leftButton, rightButton){
+        var _curElementId = 0;
+        var _self = this;
+        var _getOffsetById = function(id){
+            var res = 0;
+            for(var i = 0; i < id; i++)
+                res+=swiper.children[i].clientWidth;
+            return res;
+        }
+
+        var _getRemainingOffset = function(id) {
+            var res = 0;
+            for(var i = id; i < swiper.children.length; i++)
+                res+=swiper.children[i].clientWidth;
+            return res;
+        }
+
+        var _getParentWidth = function(){
+            return swiper.parentElement.clientWidth;
+        }
+
+        var _getChildWidth = function(id){
+            return swiper.children[id].clientWidth;
+        }
+
+        var _setOffset = function(offset){
+            swiper.style.marginLeft = -offset + "px";
+        }
+
+        var _getCurrentOffset = function(){
+            return swiper.style.marginLeft ? parseFloat(swiper.style.marginLeft) : 0;
+        }
+
+        var _swipeLeft = function(){
+            if(_curElementId === swiper.children.length - 1)
+                return;
+
+            if(_getParentWidth() >=  _getRemainingOffset(_curElementId)){
+                return;
+            }
+            
+            _curElementId++;
+            
+            var newRemainingOffset = _getRemainingOffset(_curElementId);
+
+            if(_getParentWidth() >=  newRemainingOffset){
+                _setOffset(_getOffsetById(_curElementId) - _getParentWidth() + newRemainingOffset);
+                return;
+            }
+
+            _setOffset(_getOffsetById(_curElementId));
+        }
+
+        var _swipeRight = function(){
+            if(_curElementId === 0)
+                return;
+            _curElementId--;
+            _setOffset(_getOffsetById(_curElementId));
+        }
+        
+        var _getRightOffset = function(offset){
+            var elOffset = 0;
+            var elId = swiper.children.length - 1;
+            for(var i = 0; i < swiper.children.length; i++){
+                var childWidth = _getChildWidth(i);
+                if(elOffset + childWidth/2 >= offset){
+                    elId = i;
+                    break
+                }
+                elOffset+=childWidth;
+            }
+
+            var newRemainingOffset = _getRemainingOffset(elId);
+
+            if(_getParentWidth() >=  newRemainingOffset){
+                return _getOffsetById(elId) - _getParentWidth() + newRemainingOffset;
+            }
+
+            return _getOffsetById(elId);     
+        }
+
+         var _showButtons = function(){
+            if(_getParentWidth() >=  _getRemainingOffset(0)){
+                leftButton.style.display = "none";
+                rightButton.style.display = "none"
+            }else{
+                leftButton.style.display = "";
+                rightButton.style.display = ""
+            }    
+        }
+        
+        _self.reInit = function(){
+            _showButtons(); // hide buttons if they are not needed
+        }
+        
+        _self.enableTouchScroll = false;
+
+        //------------------------------------------------------
+        leftButton.addEventListener("click", _swipeLeft);
+        rightButton.addEventListener("click", _swipeRight); 
+
+        var startTouchX = 0;
+        var startOffset = 0;
+        swiper.addEventListener("touchstart", function(e){
+            console.log(_self.enableTouchScroll);
+            if(!_self.enableTouchScroll)
+                return;
+
+            swiper.classList.add("touch");
+            startTouchX = e.changedTouches[0].clientX;
+            startOffset = -_getCurrentOffset();
+        });
+        swiper.addEventListener("touchmove", function(e){
+            if(!_self.enableTouchScroll)
+                return;
+
+            var offsetIncr =   startTouchX - e.changedTouches[0].clientX;
+            _setOffset(startOffset + offsetIncr);
+        });
+
+        swiper.addEventListener("touchend", function(e){
+            if(!_self.enableTouchScroll)
+                return;
+
+            swiper.classList.remove("touch");
+            var offsetIncr =   startTouchX - e.changedTouches[0].clientX;
+
+            var offset = startOffset + offsetIncr;
+            _setOffset(_getRightOffset(offset));
+        });
+        //--------------------------------------------------------
+        _self.reInit(); 
+    }
+
+    document.addEventListener('DOMContentLoaded', function(){ 
+        var sw = new swiper(
+            document.getElementsByClassName("swiper")[0],
+            document.getElementsByClassName("swiper-button")[0],
+            document.getElementsByClassName("swiper-button")[1]
+        );
+        
+        var console = document.getElementById("console");
+
+        window.addEventListener("resize", sw.reInit); // при изм. размера
+
+        document.getElementById("touchEnabler").addEventListener("change", function(e){
+            sw.enableTouchScroll = e.target.checked;
+        });
+
+        var elems = document.getElementsByClassName("swiper-element");
+        for(var i = 0; i < elems.length; i++){
+            elems[i].addEventListener("click", function(e){
+                var elem = document.createElement("div");
+                elem.innerText = "click " + e.target.innerText;
+                console.appendChild(elem);
+            });
+        }
+        
+    });
+</script>
