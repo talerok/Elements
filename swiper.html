@@ -2,11 +2,15 @@
     .swiper{
         white-space: nowrap;
         font-size: 0;
+        display: inline-block;
+        overflow: hidden;
+        width: 50%;
+        border-style: solid;
     }
 
-    .swiper:not(.touch){
+    .swiper:not(.touch) .swiper-element:first-child{
         transition-property: margin;
-        transition: 1s;
+        transition: 0.5s;
     }
 
     .swiper-element{
@@ -19,41 +23,32 @@
         cursor: pointer;
         display: inline-block;
         
-    }
-
-    .container{
-        display: inline-block;
-        overflow: hidden;
-        width: 50%;
-        border-style: solid;
-    }
+    } 
 
 </style>
 
 <div class="swiper-button">Влево</div>
-<div class="container">
-    <div class="swiper">
-        <div class="swiper-element" style="background-color:blue; color: white;">
-            blabla
-        </div>
-        <div class="swiper-element" style="background-color:blueviolet; color: white;">
-            blablab
-        </div>
-        <div class="swiper-element" style="background-color:brown; color: white;">
-            blablablabla
-        </div>
-        <div class="swiper-element" style="background-color:burlywood; color: white;">
-            blablablablbabababa
-        </div>
-        <div class="swiper-element" style="background-color:cadetblue; color: white;">
-            blablablabla
-        </div>
-        <div class="swiper-element" style="background-color:chartreuse; color: white;">
-            blablablablablabla
-        </div>
-        <div class="swiper-element" style="background-color:chocolate; color: white;">
-            blablablablablablablabla
-        </div>
+<div class="swiper">
+    <div class="swiper-element" style="background-color:blue; color: white;">
+        blabla
+    </div>
+    <div class="swiper-element" style="background-color:blueviolet; color: white;">
+        blablab
+    </div>
+    <div class="swiper-element" style="background-color:brown; color: white;">
+        blablablabla
+    </div>
+    <div class="swiper-element" style="background-color:burlywood; color: white;">
+        blablablablbabababa
+    </div>
+    <div class="swiper-element" style="background-color:cadetblue; color: white;">
+        blablablabla
+    </div>
+    <div class="swiper-element" style="background-color:chartreuse; color: white;">
+        blablablablablabla
+    </div>
+    <div class="swiper-element" style="background-color:chocolate; color: white;">
+        blablablablablablablabla
     </div>
 </div>
 <div class="swiper-button">Вправо</div>
@@ -82,8 +77,8 @@
             return res;
         }
 
-        var _getParentWidth = function(){
-            return swiper.parentElement.clientWidth;
+        var _getWidth = function(){
+            return swiper.clientWidth;
         }
 
         var _getChildWidth = function(id){
@@ -91,18 +86,18 @@
         }
 
         var _setOffset = function(offset){
-            swiper.style.marginLeft = -offset + "px";
+            swiper.children[0].style.marginLeft = -offset + "px";
         }
 
         var _getCurrentOffset = function(){
-            return swiper.style.marginLeft ? parseFloat(swiper.style.marginLeft) : 0;
+            return swiper.children[0].style.marginLeft ? parseFloat(swiper.children[0].style.marginLeft) : 0;
         }
 
         var _swipeLeft = function(){
             if(_curElementId === swiper.children.length - 1)
                 return;
 
-            if(_getParentWidth() >=  _getRemainingOffset(_curElementId)){
+            if(_getWidth() >=  _getRemainingOffset(_curElementId)){
                 return;
             }
             
@@ -110,8 +105,8 @@
             
             var newRemainingOffset = _getRemainingOffset(_curElementId);
 
-            if(_getParentWidth() >=  newRemainingOffset){
-                _setOffset(_getOffsetById(_curElementId) - _getParentWidth() + newRemainingOffset);
+            if(_getWidth() >=  newRemainingOffset){
+                _setOffset(_getOffsetById(_curElementId) - _getWidth() + newRemainingOffset);
                 return;
             }
 
@@ -139,15 +134,15 @@
 
             var newRemainingOffset = _getRemainingOffset(elId);
 
-            if(_getParentWidth() >=  newRemainingOffset){
-                return _getOffsetById(elId) - _getParentWidth() + newRemainingOffset;
+            if(_getWidth() >=  newRemainingOffset){
+                return _getOffsetById(elId) - _getWidth() + newRemainingOffset;
             }
 
             return _getOffsetById(elId);     
         }
 
          var _showButtons = function(){
-            if(_getParentWidth() >=  _getRemainingOffset(0)){
+            if(_getWidth() >=  _getRemainingOffset(0)){
                 leftButton.style.display = "none";
                 rightButton.style.display = "none"
             }else{
