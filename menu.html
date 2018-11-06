@@ -1,0 +1,374 @@
+<style>
+    .custom-menu-elem.open-n > .custom-menu-submenu >  .custom-menu-elem:not(.open):not(.open-n){
+        display: none;
+    }
+
+    .custom-menu-elem.open > *:not(.custom-menu-submenu), .custom-menu-elem.open-n > *:not(.custom-menu-submenu){
+        display: none;
+    }
+
+    .custom-menu-elem:not(.open):not(.open-n) > .custom-menu-submenu >  .custom-menu-elem{
+        display: none;
+    } 
+
+    .custom-menu-elem.active > button, .custom-menu-elem.active-n > button{
+        background-color:green;
+    }
+
+</style>
+
+<button id='open-menu'>Открыть меню</button>
+<button id='close-menu'>Закрыть меню</button>
+
+<div id="container">
+
+</div>
+
+
+<script>
+ function createElemLink(elemDom, elem) {
+        var a = document.createElement("a");
+        a.setAttribute('data-id', elem.id);
+        a.classList.add("custom-menu-single-elem-button")
+        a.innerText = elem.name;
+
+        elemDom.addEventListener("click", function (e) {
+            if (window.contentReloader) {
+                contentReloader.OnMainMenuLinkClicked($(this));
+                return false;
+            } else
+                event.stopPropagation();
+        });
+
+        elemDom.appendChild(a);
+        elemDom.setAttribute('data-menutype', elem.type);
+        a.setAttribute('data-menutype', elem.type);
+        return elemDom;
+    }
+
+
+function tightMenuElemFactory(menuInfo) {
+        this.get = function (menu, elem, elemDom) {
+            if (menuInfo === elem)
+                return elemDom;
+
+            if (!Array.isArray(elem.data))
+                return createElemLink(elemDom, elem);
+
+            var subMenu = elemDom.getElementsByClassName("custom-menu-submenu");
+            if (subMenu.length === 0)
+                return elemDom;
+            else
+                subMenu = subMenu[0];
+
+            var cont = document.createElement("div");
+            cont.classList.add("custom-menu-elem");
+
+            var header = document.createElement("div");
+            header.classList.add("custom-menu-elem-header-tight");
+
+            var headerTitle = document.createElement("span");
+            headerTitle.classList.add("custom-menu-elem-header-tight-title");
+
+            headerTitle.innerText = elem.name;
+
+            var backButton = document.createElement("button");
+            backButton.classList.add("custom-menu-elem-header-tight-back");
+            backButton.addEventListener("click", function () {
+                menu.prev();
+            });
+
+            var rootButton = document.createElement("button");
+            rootButton.classList.add("custom-menu-elem-header-tight-root");
+            rootButton.addEventListener("click", function () {
+                menu.openRoot();
+            });
+
+            header.appendChild(backButton);
+            header.appendChild(headerTitle);
+            header.appendChild(rootButton);
+            
+            cont.appendChild(header);
+            subMenu.insertBefore(cont, subMenu.firstChild);
+            return elemDom;
+        }
+    }
+
+
+/*
+    elem format:
+    {
+        id: (Guid),
+        name: (string),
+        data: [elem, elem] | string
+    }
+*/
+function customMenu(mainElem, container, elemFactory) {
+    var _openMenuEvent = "custom-menu-open", _closeMenuEvent = "custom-menu-close";
+    var _self = this;
+    var _domElem;
+
+    var _triggerEvent = function (event, params) {
+
+        var evt = document.createEvent("CustomEvent")
+        evt.initCustomEvent(event, false, false, params);
+        window.dispatchEvent(evt);
+    }
+
+
+    var _renderEmptyElem = function (elem) {
+        var domElem = document.createElement("li");
+        domElem.setAttribute('data-menuid', elem.id);
+        domElem.classList.add('custom-menu-elem');
+        return domElem;
+    }
+
+    var _renderArrayElem = function (elem) {
+        var domElem = _renderEmptyElem(elem);
+
+        var button = document.createElement("button");
+        button.setAttribute('data-mid', elem.id);
+        button.classList.add('custom-menu-submenu-button');
+        button.innerText = elem.name;
+        domElem.appendChild(button);
+
+        var subMenu = document.createElement("ul");
+        subMenu.classList.add('custom-menu-submenu');
+        domElem.appendChild(subMenu);
+
+        elem.data.forEach(function (e) {
+            var newDomElem = _renderElem(e);
+            subMenu.appendChild(newDomElem);
+        });
+
+        return domElem;
+    }
+
+    var _renderSingleElem = function (elem) {
+        var domElem = _renderEmptyElem(elem);
+        domElem.classList.add('custom-menu-single-elem');
+        return domElem;
+    }
+
+    var _useElementFactory = function (elem, html) {
+        if (elemFactory && elemFactory.get)
+            return elemFactory.get(_self, elem, html);
+        else
+            return html;
+    }
+
+    var _renderElem = function (elem) {
+        return _useElementFactory(elem, Array.isArray(elem.data) ? _renderArrayElem(elem) : _renderSingleElem(elem));
+    }
+
+    var _initMenuButtonEvents = function (domElem) {
+        var btns = domElem.getElementsByClassName("custom-menu-submenu-button");
+        for (var i = 0; i < btns.length; i++)
+            btns[i].addEventListener("click", function () {
+                var id = this.dataset.mid;
+                _setOpenById(domElem, id);
+            });
+    }
+
+    var _renderMenu = function (elem) {
+        var res = document.createElement("div");
+        res.setAttribute('data-menuid', elem.id);
+        res.classList.add("custom-menu-elem");
+
+        var subMenu = document.createElement("ul");
+        subMenu.classList.add('custom-menu-submenu');
+        res.appendChild(subMenu);
+
+        elem.data.forEach(function (e) {
+            var newDomElem = _renderElem(e);
+            subMenu.appendChild(newDomElem);
+        });
+
+        _initMenuButtonEvents(res);
+        return _useElementFactory(elem, res);
+    }
+
+    var _removeClass = function (domElem, cls) {
+        if (domElem.classList.contains(cls))
+            domElem.classList.remove(cls);
+
+        var activeElems = domElem.getElementsByClassName(cls);
+        while (activeElems.length) {
+            activeElems[0].classList.remove(cls);
+        }
+    }
+
+    this.removeClass = function (cls) { _removeClass(_domElem, cls); };
+
+    this.setClassChainById = function (id, cls) {
+        _setClassChain(_domElem, cls, id);
+    }
+
+    var _getDomElemId = function (domElem) {
+        return domElem.dataset.menuid;
+    }
+
+    var _setClassByChain = function (domElem, cls, chain) {
+        var id = _getDomElemId(domElem);
+        var pos = chain.indexOf(id);
+        if (pos === 0)
+            domElem.classList.add(cls);
+        else if (pos !== -1)
+            domElem.classList.add(cls + "-n");
+
+        var children = domElem.children;
+        for (var i = 0; i < children.length; i++)
+            _setClassByChain(children[i], cls, chain);
+    }
+
+    var _setClassChain = function (domElem, cls, id) {
+        _removeClass(domElem, cls);
+        _removeClass(domElem, cls + "-n");
+        var chain = _getMenuChain(id, mainElem);
+        if (chain)
+            _setClassByChain(domElem, cls, chain);
+    }
+
+    var _setOpenById = function (domElem, id) {
+        _setClassChain(domElem, "open", id);
+        _triggerEvent(_openMenuEvent, { menu: _self, domElem: domElem, elemId: id });
+    }
+
+    var _getMenuChain = function (id, elem) {
+        if (elem.id === id)
+            return [id];
+
+        if (!Array.isArray(elem.data))
+            return;
+
+        for (var i = 0; i < elem.data.length; i++) {
+            var subElem = _getMenuChain(id, elem.data[i]);
+            if (subElem)
+                return subElem.concat([elem.id]);
+        }
+
+        return null;
+    }
+
+    this.close = function () {
+        if (_domElem.parentElement === container) {
+            container.removeChild(_domElem);
+            _triggerEvent(_closeMenuEvent, { menu: _self });
+        }
+    }
+
+    _domElem = _renderMenu(mainElem);
+
+    this.open = function (elemId) { // open menu (elemId === null) or subMenu with uniq id
+        var id = elemId ? elemId : mainElem.id;
+
+        container.appendChild(_domElem);
+        _setOpenById(_domElem, id);
+    }
+
+    this.openRoot = function () {
+        _setOpenById(_domElem, mainElem.id);
+    }
+
+    var _getLastByClass = function (domElem, className) {
+        var resElems = domElem.getElementsByClassName(className);
+        if (resElems.length === 0)
+            if (domElem.classList.contains(className))
+                return domElem;
+            else
+                return null;
+        return resElems[resElems.length - 1];
+
+    }
+
+    this.prev = function () {
+        var elem = _getLastByClass(_domElem, "open-n");
+        if (!elem)
+            return;
+
+        _removeClass(_domElem, "open");
+
+        elem.classList.remove("open-n");
+        elem.classList.add("open");
+    }   
+}
+
+
+
+var cstmMenu;
+
+document.addEventListener('DOMContentLoaded', function(){ 
+    /*
+    elem format:
+    {
+        id: (Guid),
+        name: (string),
+        data: [elem, elem] | string
+    }
+*/
+    var menu = {
+        id: "0",
+        name: 'Main menu',
+        data: [
+            {
+                id: "1",
+                name: 'Sub menu 1',
+                data: [
+                    {
+                        id: "11",
+                        name: 'single-element 11',
+                        data: "single-element-11"
+                    },
+                    {
+                        id: "12",
+                        name: 'single-element 12',
+                        data: "single-element-12"
+                    },
+                    {
+                        id: "13",
+                        name: 'Sub menu 13',
+                        data: [
+                            {
+                                id: "131",
+                                name: 'single-element 131',
+                                data: "single-element-131"
+                            },
+                            {
+                                id: "132",
+                                name: 'single-element 132',
+                                data: "single-element-132"
+                            }
+                        ]
+                    }
+                ]
+            },
+            {
+                id: "2",
+                name: 'single-element 2',
+                data: "single-element-2"
+            }
+        ]
+    };
+
+    var openButton = document.getElementById("open-menu");
+    var closeButton = document.getElementById("close-menu");
+    var container = document.getElementById("container");
+
+    var callback = function(value){
+        alert("Выбран " + value);
+    };
+
+    cstmMenu = new customMenu(menu, container, new tightMenuElemFactory(menu));
+    cstmMenu.setClassChainById("132","active"); // выбрать активный элемент
+
+    openButton.addEventListener('click', function(){
+        cstmMenu.open();
+    });
+
+     closeButton.addEventListener('click', function(){
+        cstmMenu.close();
+    });
+
+});
+
+</script>

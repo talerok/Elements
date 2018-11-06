@@ -60,191 +60,265 @@
 </div>
 
 <script>
-    var swiper = function(swiper, leftButton, rightButton){
-        var _curElementId = 0;
-        var _self = this;
-        var _getOffsetById = function (id) {
-            var res = 0;
-            for (var i = 0; i < id; i++)
-                res += swiper.children[i].clientWidth;
-            return res;
-        }
-        //get 'real' offset (from beginning of swiper)
-        var _getRemainingOffset = function (id) {
-            var res = 0;
-            for (var i = id; i < swiper.children.length; i++)
-                res += swiper.children[i].clientWidth;
-            return res;
+    var customSwiper = function (swiper, rightButton, leftButton) {
+    var _curElementId = 0;
+    var _self = this;
+    var _getOffsetById = function (id) {
+        var res = 0;
+        for (var i = 0; i < id; i++)
+            res += swiper.children[i].clientWidth;
+        return res;
+    }
+    //get 'real' offset (from beginning of swiper)
+    var _getRemainingOffset = function (id) {
+        var res = 0;
+        for (var i = id; i < swiper.children.length; i++)
+            res += swiper.children[i].clientWidth;
+        return res;
+    }
+
+    var _swipeEvent = "custom-swiper-evenet", _swipePositionEvent = "custom-swiper-pos-event";
+
+    var _triggerEvent = function (event, params) {
+
+        var evt = document.createEvent("CustomEvent")
+        evt.initCustomEvent(event, false, false, params);
+        window.dispatchEvent(evt);
+    }
+
+    var _getWidth = function () {
+        return swiper.clientWidth;
+    }
+
+    var _getChildWidth = function (id) {
+        return swiper.children[id].clientWidth;
+    }
+
+    var _setOffset = function (offset) {
+        swiper.children[0].style.marginLeft = -offset + "px";
+    }
+
+    var _getCurrentOffset = function () {
+        return swiper.children[0].style.marginLeft ? parseFloat(swiper.children[0].style.marginLeft) : 0;
+    }
+
+    var _swipeRight = function () {
+        if (swiper.children.length === 0)
+            return;
+
+        if (_curElementId === swiper.children.length - 1)
+            return;
+
+        if (_getWidth() >= _getRemainingOffset(_curElementId)) {
+            return;
         }
 
-        var _getWidth = function () {
-            return swiper.clientWidth;
+        _curElementId++;
+
+        _setOffsetById(_curElementId);
+        _triggerEvent(_swipeEvent, { swiper: _self });
+    }
+
+    var _swipeLeft = function () {
+        if (swiper.children.length === 0)
+            return;
+
+        if (_curElementId === 0)
+            return;
+        _setOffsetById(_curElementId - 1);
+        _triggerEvent(_swipeEvent, { swiper: _self });
+    }
+
+    var _getIdbyOffset = function (offset) {
+        var elOffset = 0;
+        var elId = swiper.children.length - 1;
+        for (var i = 0; i < swiper.children.length; i++) {
+            var childWidth = _getChildWidth(i);
+            if (elOffset + childWidth / 3 >= offset) {
+                elId = i;
+                break
+            }
+            elOffset += childWidth;
+        }
+        return elId;
+    }
+
+    var isNotFull = function () {
+        return _getRemainingOffset(0) < _getWidth();
+    }
+
+    var _state;
+
+    var _state = (function () {
+        var _state;
+        var _prefix = "custom-swiper-state-"
+
+        var removeButtonClasses = function (button) {
+            for (var i = 0; i < button.classList.length; i++)
+                if (button.classList[i].indexOf(_prefix) !== -1)
+                    button.classList.remove(button.classList[i]);
         }
 
-        var _getChildWidth = function (id) {
-            return swiper.children[id].clientWidth;
+        var setButtonClasses = function (state) {
+            removeButtonClasses(leftButton);
+            removeButtonClasses(rightButton);
+            leftButton.classList.add(_prefix + state);
+            rightButton.classList.add(_prefix + state);
         }
 
-        var _setOffset = function (offset) {
-            swiper.children[0].style.marginLeft = -offset + "px";
-        }
+        var _self = {};
 
-        var _getCurrentOffset = function () {
-            return swiper.children[0].style.marginLeft ? parseFloat(swiper.children[0].style.marginLeft) : 0;
-        }
-
-        var _swipeLeft = function () {
-            if (swiper.children.length === 0)
+        _self.set = function (state) {
+            if (state === _state)
                 return;
 
-            if (_curElementId === swiper.children.length - 1)
-                return;
+            _state = state;
+            setButtonClasses(_state);
+        }
 
-            if (_getWidth() >= _getRemainingOffset(_curElementId)) {
+        _self.get = function () {
+            return _state;
+        }
+
+        return _self;
+    })();
+
+    var _setOffsetById = function (id) {
+        if (isNotFull()) {
+            _curElementId = 0;
+            _setOffset(0);
+            _state.set("not-full");
+            return;
+        }
+
+        var newRemainingOffset = _getRemainingOffset(id);
+        if (_getWidth() >= newRemainingOffset) {
+            var offset = _getOffsetById(id) - _getWidth() + newRemainingOffset;
+            _curElementId = _getIdbyOffset(offset);
+            _setOffset(_getOffsetById(id) - _getWidth() + newRemainingOffset);
+            _state.set("end");
+            return;
+        }
+
+        _setOffset(_getOffsetById(id));
+        _curElementId = id;
+
+        if (_curElementId === 0)
+            _state.set("start");
+        else
+            _state.set("middle");
+
+    }
+
+    var _setOffsetByOffset = function (offset) {
+        if (isNotFull()) {
+            _curElementId = 0;
+            _setOffset(0);
+            _state.set("not-full");
+            return;
+        }
+
+        var elId = _getIdbyOffset(offset);
+        var newRemainingOffset = _getRemainingOffset(elId);
+
+        if (_getWidth() >= newRemainingOffset) {
+            var res = _getOffsetById(elId) - _getWidth() + newRemainingOffset;
+            _curElementId = _getIdbyOffset(res);
+            _setOffset(res);
+            _state.set("end");
+            return;
+        }
+
+        _curElementId = elId;
+        _setOffset(_getOffsetById(elId));
+
+        if (_curElementId === 0)
+            _state.set("start");
+        else
+            _state.set("middle");
+    }
+
+
+    _self.setOffsetByElem = function (elem) {
+        for (var i = 0; i < swiper.children.length; i++) {
+            if (swiper.children[i] === elem) {
+                _setOffsetById(i);
                 return;
             }
-
-            _curElementId++;
-
-            _setOffsetById(_curElementId);
+                
         }
+    }
+  
+    _self.reInit = function () {
+        _setOffsetById(_curElementId);
+    }
 
-        var _swipeRight = function () {
-            if (swiper.children.length === 0)
-                return;
+    _self.enableTouchScroll = false;
+    _self.isFull = function () {
+        return !isNotFull();
+    }
+    //------------------------------------------------------
+    leftButton.addEventListener("click", _swipeLeft);
+    rightButton.addEventListener("click", _swipeRight);
 
-            if (_curElementId === 0)
-                return;
-            _setOffsetById(_curElementId - 1);
+    var startTouchX = 0;
+    var startOffset = 0;
+    var _wasSwipeEventByTouch = false;
+    swiper.addEventListener("touchstart", function (e) {
+        if (swiper.children.length === 0)
+            return;
+
+        if (!_self.enableTouchScroll)
+            return;
+
+        swiper.classList.add("touch");
+        startTouchX = e.changedTouches[0].clientX;
+        startOffset = -_getCurrentOffset();
+        _wasSwipeEventByTouch = false;
+    });
+    swiper.addEventListener("touchmove", function (e) {
+        if (swiper.children.length === 0)
+            return;
+
+        if (!_self.enableTouchScroll)
+            return;
+
+        var offsetIncr = startTouchX - e.changedTouches[0].clientX;
+        _setOffset(startOffset + offsetIncr);
+
+        if (!_wasSwipeEventByTouch) {
+            _triggerEvent(_swipeEvent, { swiper: _self });
+            _wasSwipeEventByTouch = true;
         }
+    });
 
-        var _getIdbyOffset = function (offset) {
-            var elOffset = 0;
-            var elId = swiper.children.length - 1;
-            for (var i = 0; i < swiper.children.length; i++) {
-                var childWidth = _getChildWidth(i);
-                if (elOffset + childWidth / 3 >= offset) {
-                    elId = i;
-                    break
-                }
-                elOffset += childWidth;
-            }
-            return elId;
-        }
+    swiper.addEventListener("touchend", function (e) {
+        if (swiper.children.length === 0)
+            return;
 
-        var isNotFull = function () {
-            return _getRemainingOffset(0) < _getWidth();
-        }
+        if(!_self.enableTouchScroll)
+            return;
 
-        var _setOffsetById = function (id) {
-            if (isNotFull()) {
-                _curElementId = 0;
-                _setOffset(0);
-                return;
-            }
+        swiper.classList.remove("touch");
+        var offsetIncr = startTouchX - e.changedTouches[0].clientX;
 
-            var newRemainingOffset = _getRemainingOffset(id);
-            if (_getWidth() >= newRemainingOffset) {
-                _setOffset(_getOffsetById(id) - _getWidth() + newRemainingOffset);
-                return;
-            }
+        var offset = startOffset + offsetIncr;
+        _setOffsetByOffset(offset);
+    });
 
-            _setOffset(_getOffsetById(id));
-            _curElementId = id;
-        }
+    swiper.addEventListener("wheel", function (e) {
+        if (e.deltaX > 0 || e.deltaY > 0 || e.deltaZ > 0)
+            _swipeRight();
+        else if (e.deltaX < 0 || e.deltaY < 0 || e.deltaZ < 0)
+            _swipeLeft();
+    })
 
-        var _setOffsetByOffset = function (offset) {
-            if (isNotFull()) {
-                _curElementId = 0;
-                _setOffset(0);
-                return;
-            }
-
-            var elId = _getIdbyOffset(offset);
-            var newRemainingOffset = _getRemainingOffset(elId);
-
-            if (_getWidth() >= newRemainingOffset) {
-                var res = _getOffsetById(elId) - _getWidth() + newRemainingOffset;
-                _curElementId = _getIdbyOffset(res);
-                _setOffset(res);
-                return;
-            }
-
-            _curElementId = elId;
-            _setOffset(_getOffsetById(elId));
-        }
-
-        var _showButtons = function () {
-            if (_getWidth() >= _getRemainingOffset(0)) {
-                leftButton.style.display = "none";
-                rightButton.style.display = "none"
-            } else {
-                leftButton.style.display = "";
-                rightButton.style.display = ""
-            }
-        }
-
-        _self.reInit = function () {
-            _showButtons(); // hide or show buttons
-            _setOffsetById(_curElementId);
-        }
-
-        _self.enableTouchScroll = false;
-        _self.isFull = function () {
-            return !isNotFull();
-        }
-        //------------------------------------------------------
-        leftButton.addEventListener("click", _swipeLeft);
-        rightButton.addEventListener("click", _swipeRight);
-
-        var startTouchX = 0;
-        var startOffset = 0;
-        swiper.addEventListener("touchstart", function (e) {
-            if (swiper.children.length === 0)
-                return;
-
-            if (!_self.enableTouchScroll)
-                return;
-
-            swiper.classList.add("touch");
-            startTouchX = e.changedTouches[0].clientX;
-            startOffset = -_getCurrentOffset();
-        });
-        swiper.addEventListener("touchmove", function (e) {
-            if (swiper.children.length === 0)
-                return;
-
-            if (!_self.enableTouchScroll)
-                return;
-
-            var offsetIncr = startTouchX - e.changedTouches[0].clientX;
-            _setOffset(startOffset + offsetIncr);
-        });
-
-        swiper.addEventListener("touchend", function (e) {
-            if (swiper.children.length === 0)
-                return;
-
-            swiper.classList.remove("touch");
-            var offsetIncr = startTouchX - e.changedTouches[0].clientX;
-
-            var offset = startOffset + offsetIncr;
-            _setOffsetByOffset(offset);
-        });
-
-        swiper.addEventListener("wheel", function (e) {
-            if (e.deltaX > 0 || e.deltaY > 0 || e.deltaZ > 0)
-                _swipeLeft();
-            else if (e.deltaX < 0 || e.deltaY < 0 || e.deltaZ < 0)
-                _swipeRight();
-        })
-
-        //--------------------------------------------------------
-        _self.reInit();
+    //--------------------------------------------------------
+    _self.reInit();
     }
 
     document.addEventListener('DOMContentLoaded', function(){ 
-        var sw = new swiper(
+        var sw = new customSwiper(
             document.getElementsByClassName("swiper")[0],
             document.getElementsByClassName("swiper-button")[0],
             document.getElementsByClassName("swiper-button")[1]
