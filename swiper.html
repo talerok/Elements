@@ -50,6 +50,15 @@
     <div class="swiper-element" style="background-color:chocolate; color: white;">
         blablablablablablablabla
     </div>
+    <div class="swiper-element" style="background-color:darkblue; color: white;">
+        blablablablablablablabla222
+    </div>
+    <div class="swiper-element" style="background-color:darkcyan; color: white;">
+        blablablablabl123
+    </div>
+    <div class="swiper-element" style="background-color:darkkhaki; color: white;">
+        blablablablablabl11
+    </div>
 </div>
 <div class="swiper-button">Вправо</div>
 <div style="margin-top: 30px;">
@@ -95,7 +104,8 @@
     }
 
     var _setOffset = function (offset) {
-        swiper.children[0].style.marginLeft = -offset + "px";
+        if (swiper && swiper.children.length > 0)
+            swiper.children[0].style.marginLeft = -offset + "px";
     }
 
     var _getCurrentOffset = function () {
@@ -253,37 +263,54 @@
         _setOffsetById(_curElementId);
     }
 
-    _self.enableTouchScroll = false;
     _self.isFull = function () {
         return !isNotFull();
     }
+
+    var _enableTouchScroll = false;
+
+    _self.useTouchScroll = function(use){
+        _enableTouchScroll = use;
+    }
+
+    var _inertiaCoef = 0.2;
+
+    _self.useInertia = function (coef) {
+        _inertiaCoef = coef;
+    }
+
     //------------------------------------------------------
     leftButton.addEventListener("click", _swipeLeft);
     rightButton.addEventListener("click", _swipeRight);
 
     var startTouchX = 0;
     var startOffset = 0;
+    var prevOffsetIncr = 0;
+    var offsetIncr = 0;
     var _wasSwipeEventByTouch = false;
     swiper.addEventListener("touchstart", function (e) {
         if (swiper.children.length === 0)
             return;
 
-        if (!_self.enableTouchScroll)
+        if (!_enableTouchScroll)
             return;
 
         swiper.classList.add("touch");
         startTouchX = e.changedTouches[0].clientX;
         startOffset = -_getCurrentOffset();
         _wasSwipeEventByTouch = false;
+        prevOffsetIncr = 0;
+        offsetIncr = 0;
     });
     swiper.addEventListener("touchmove", function (e) {
         if (swiper.children.length === 0)
             return;
 
-        if (!_self.enableTouchScroll)
+        if (!_enableTouchScroll)
             return;
 
-        var offsetIncr = startTouchX - e.changedTouches[0].clientX;
+        prevOffsetIncr = offsetIncr;
+        offsetIncr = startTouchX - e.changedTouches[0].clientX;
         _setOffset(startOffset + offsetIncr);
 
         if (!_wasSwipeEventByTouch) {
@@ -292,17 +319,24 @@
         }
     });
 
+    function extraDist(a, k) {
+        var t = 1 / k;
+        return (a - a * k) * Math.pow(t, 2) / 2;
+    }
+
     swiper.addEventListener("touchend", function (e) {
         if (swiper.children.length === 0)
             return;
 
-        if(!_self.enableTouchScroll)
+        if(!_enableTouchScroll)
             return;
 
         swiper.classList.remove("touch");
-        var offsetIncr = startTouchX - e.changedTouches[0].clientX;
+        
 
-        var offset = startOffset + offsetIncr;
+        var acceleration = offsetIncr - prevOffsetIncr;
+
+        var offset = startOffset + offsetIncr + extraDist(acceleration, _inertiaCoef);
         _setOffsetByOffset(offset);
     });
 
@@ -315,7 +349,7 @@
 
     //--------------------------------------------------------
     _self.reInit();
-    }
+}
 
     document.addEventListener('DOMContentLoaded', function(){ 
         var sw = new customSwiper(
@@ -329,7 +363,7 @@
         window.addEventListener("resize", sw.reInit); // при изм. размера
 
         document.getElementById("touchEnabler").addEventListener("change", function(e){
-            sw.enableTouchScroll = e.target.checked;
+            sw.useTouchScroll(e.target.checked);
         });
 
         var elems = document.getElementsByClassName("swiper-element");
